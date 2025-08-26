@@ -1,9 +1,14 @@
 name: Build Nginx Variants RPM (RHEL9)
 
 on:
-  schedule:
-    - cron: '0 4 * * 0'   # 每周日凌晨 4:00 UTC
-  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 4 * * 0'   # 每周日凌晨 4:00 UTC（已注释）
+
+  push:
+    branches:
+      - main  # 当 push 到 main 分支时触发
+
+  workflow_dispatch:  # 仍保留手动触发
     inputs:
       target:
         description: 'Select build target'
@@ -21,7 +26,6 @@ jobs:
     container:
       image: quay.io/centos/centos:stream9
 
-    # 固定路径（容器内）
     env:
       BUILD_USER: builder
       BUILD_HOME: /home/builder
@@ -48,18 +52,27 @@ jobs:
 
       - name: Parse Build Target
         run: |
-          case "${{ inputs.target }}" in
-            nginx-1.25.0)
-              echo "BUILD_TARGET=nginx-1.25.0" >> $GITHUB_ENV
-              ;;
-            nginx-latest)
+          # 默认为 nginx-latest，兼容 push 触发
+          case "${{ github.event_name }}" in
+            push)
               echo "BUILD_TARGET=nginx-latest" >> $GITHUB_ENV
+              echo "Triggered by push, using default target: nginx-latest"
               ;;
-            tengine-latest)
-              echo "BUILD_TARGET=tengine-latest" >> $GITHUB_ENV
-              ;;
-            openresty-latest)
-              echo "BUILD_TARGET=openresty-latest" >> $GITHUB_ENV
+            workflow_dispatch)
+              case "${{ inputs.target }}" in
+                nginx-1.25.0)
+                  echo "BUILD_TARGET=nginx-1.25.0" >> $GITHUB_ENV
+                  ;;
+                nginx-latest)
+                  echo "BUILD_TARGET=nginx-latest" >> $GITHUB_ENV
+                  ;;
+                tengine-latest)
+                  echo "BUILD_TARGET=tengine-latest" >> $GITHUB_ENV
+                  ;;
+                openresty-latest)
+                  echo "BUILD_TARGET=openresty-latest" >> $GITHUB_ENV
+                  ;;
+              esac
               ;;
           esac
 
@@ -74,7 +87,7 @@ jobs:
         with:
           name: rpms-${{ env.BUILD_TARGET }}
           path: /home/builder/rpmbuild/RPMS/x86_64/*.rpm
-          if-no-files-found: warn  # 防止无文件时报错
+          if-no-files-found: warn
 
       - name: Extract Version from SPEC
         if: github.event_name == 'workflow_dispatch'
@@ -85,7 +98,7 @@ jobs:
             echo "RPM_VERSION=$VERSION" >> $GITHUB_ENV
             echo "✅ Detected version: $VERSION"
           else
-            echo "❌ SPEC file not found in ${{ env.RPMBUILD }}/SPECS/"
+            echo "❌ SPEC file not found"
             exit 1
           fi
 
