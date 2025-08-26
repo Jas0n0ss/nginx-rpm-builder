@@ -44,7 +44,8 @@ jobs:
 
       - name: Setup Build Environment
         run: |
-          su - builder -c "cd /home/builder && ./build/scripts/setup_env.sh"
+          cd /home/builder
+          ./build/scripts/setup_env.sh
 
       - name: Parse Build Target
         run: |
