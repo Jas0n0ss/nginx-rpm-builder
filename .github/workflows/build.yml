@@ -42,6 +42,11 @@ jobs:
 
       - name: Copy Project Files
         run: |
+          cp -r $GITHUB_WORKSPACE/* /home/builder/ || true
+          chown -R builder:builder /home/builder/
+
+      - name: Copy Project Files
+        run: |
           cd $GITHUB_WORKSPACE
           sudo chown -R builder .
           cp -r ./* /home/builder/
