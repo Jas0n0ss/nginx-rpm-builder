@@ -74,10 +74,14 @@ jobs:
 
       - name: Build RPM
         run: |
-          su - builder -c "cd /home/builder && ./build/scripts/build.sh"
+          cd /home/builder
+          ./build/scripts/build.sh
         env:
           BUILD_TARGET: ${{ env.BUILD_TARGET }}
-
+          RPMBUILD: /home/builder/rpmbuild
+          MODULES: /home/builder/modules
+          LUADIR: /home/builder/lualib
+      
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
