@@ -71,6 +71,14 @@ jobs:
           BUILD_TARGET: ${{ env.BUILD_TARGET }}
 
       - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-${{ env.BUILD_TARGET }}
+          path: /home/builder/rpmbuild/RPMS/x86_64/*.rpm
+          if-no-files-found: warn  # 可选：避免无文件时报错
+      
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: rpms-${{ env.BUILD_TARGET }}
