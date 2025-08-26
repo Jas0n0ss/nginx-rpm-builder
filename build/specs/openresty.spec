@@ -1,10 +1,15 @@
 Name:           openresty-custom
-Version:        1.25.3.1
+Version:        1.27.1.2
 Release:        1%{?dist}
 Summary:        OpenResty with GeoIP2 and VTS modules
 License:        BSD
 URL:            https://openresty.org/
-Source0:        openresty-%{version}.tar.gz
+Source0:        https://openresty.org/download/openresty-%{version}.tar.gz
+
+# 动态模块源码（在线下载）
+Source1:        https://github.com/leev/ngx_http_geoip2_module/archive/refs/tags/3.4.tar.gz
+Source2:        https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v0.2.2.tar.gz
+
 BuildRequires:  gcc, make, pcre-devel, zlib-devel, openssl-devel, libmaxminddb-devel
 Requires:       pcre, zlib, openssl, libmaxminddb
 
@@ -12,7 +17,11 @@ Requires:       pcre, zlib, openssl, libmaxminddb
 OpenResty with additional dynamic modules: GeoIP2, VTS.
 
 %prep
-%setup -n openresty-%{version}
+%setup -n openresty-%{version} -a 1 -a 2
+
+# 重命名模块目录为预期名称
+mv ngx_http_geoip2_module-3.4 ngx_http_geoip2_module
+mv nginx-module-vts-v0.2.2 nginx-module-vts
 
 %build
 ./configure \
@@ -24,26 +33,18 @@ OpenResty with additional dynamic modules: GeoIP2, VTS.
     --with-http_ssl_module \
     --with-http_realip_module \
     --with-compat \
-    --add-dynamic-module=%{MODULES}/ngx_http_geoip2_module \
-    --add-dynamic-module=%{MODULES}/nginx-module-vts
+    --add-dynamic-module=ngx_http_geoip2_module \
+    --add-dynamic-module=nginx-module-vts
 make
 
 %install
 mkdir -p %{buildroot}/usr/lib64/openresty/modules
 cp build/objs/*.so %{buildroot}/usr/lib64/openresty/modules/ || true
 
-%post
-cat << 'EOF'
-💡 模块启用提示：
-请在 /etc/openresty/nginx.conf 中添加：
-    load_module modules/ngx_http_geoip2_module.so;
-    load_module modules/ngx_http_vhost_traffic_status_module.so;
-EOF
-
 %files
 /usr/lib64/openresty/modules/ngx_http_geoip2_module.so
 /usr/lib64/openresty/modules/ngx_http_vhost_traffic_status_module.so
 
 %changelog
-* Sun Apr 05 2025 Builder <ci@example.com> - %{version}-1
-- Auto-built with dynamic modules
+* 05 Apr 2025 Builder <ci@example.com> - 1.27.1.2-1
+- Auto-built with dynamic modules from online sources
