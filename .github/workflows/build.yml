@@ -24,9 +24,9 @@ jobs:
     env:
       BUILD_USER: builder
       BUILD_HOME: /home/builder
-      RPMBUILD: ${{ env.BUILD_HOME }}/rpmbuild
-      MODULES: ${{ env.BUILD_HOME }}/modules
-      LUADIR: ${{ env.BUILD_HOME }}/lualib
+      RPMBUILD: /home/builder/rpmbuild
+      MODULES: /home/builder/modules
+      LUADIR: /home/builder/lualib
 
     steps:
       - name: Checkout Code
@@ -34,20 +34,24 @@ jobs:
 
       - name: Setup Builder User
         run: |
-          useradd -m ${{ env.BUILD_USER }}
-          echo "${{ env.BUILD_USER }} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          su - ${{ env.BUILD_USER }} -c "echo 'Builder user setup complete.'"
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
       - name: Copy Project & Setup Env
         run: |
           cd $GITHUB_WORKSPACE
-          sudo chown -R ${{ env.BUILD_USER }} .
-          cp -r ./* ${{ env.BUILD_HOME }}/
-          su - ${{ env.BUILD_USER }} -c "cd ${{ env.BUILD_HOME }} && ./build/scripts/setup_env.sh"
+          sudo chown -R builder .
+          cp -r ./* /home/builder/
+        shell: bash
+
+      - name: Setup Environment
+        run: |
+          su - builder -c "cd /home/builder && ./build/scripts/setup_env.sh"
+        shell: bash
 
       - name: Parse Build Target
         run: |
-          case "${{ inputs.target }}" in
+          case "${{ github.event.inputs.target }}" in
             nginx-1.25.0)
               echo "BUILD_TARGET=nginx-1.25.0" >> $GITHUB_ENV
               ;;
@@ -61,32 +65,34 @@ jobs:
               echo "BUILD_TARGET=openresty-latest" >> $GITHUB_ENV
               ;;
           esac
+        shell: bash
 
       - name: Build RPM
         run: |
-          cd ${{ env.BUILD_HOME }}
+          cd /home/builder
           ./build/scripts/build.sh
+        shell: bash
+        env:
+          BUILD_TARGET: ${{ env.BUILD_TARGET }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: rpms-${{ env.BUILD_TARGET }}
-          path: ${{ env.RPMBUILD }}/RPMS/x86_64/*.rpm
+          path: /home/builder/rpmbuild/RPMS/x86_64/*.rpm
 
-      # 新增：提取版本号到环境变量
       - name: Extract Version from SPEC
         if: github.event_name == 'workflow_dispatch'
-        id: extract_version
         run: |
-          SPEC_FILE=$(find ${{ env.RPMBUILD }}/SPECS -name "*.spec" | head -1)
+          SPEC_FILE=$(find /home/builder/rpmbuild/SPECS -name "*.spec" | head -1)
           if [[ -f "$SPEC_FILE" ]]; then
             VERSION=$(grep "^Version:" "$SPEC_FILE" | awk '{print $2}')
             echo "RPM_VERSION=$VERSION" >> $GITHUB_ENV
-            echo "Extracted version: $VERSION"
           else
             echo "❌ SPEC file not found"
             exit 1
           fi
+        shell: bash
 
       - name: Create GitHub Release (Manual Only)
         if: github.event_name == 'workflow_dispatch'
@@ -94,5 +100,5 @@ jobs:
         with:
           tag_name: ${{ env.BUILD_TARGET }}-v${{ env.RPM_VERSION }}
           name: Release ${{ env.BUILD_TARGET }} ${{ env.RPM_VERSION }}
-          files: ${{ env.RPMBUILD }}/RPMS/x86_64/*.rpm
+          files: /home/builder/rpmbuild/RPMS/x86_64/*.rpm
           generate_release_notes: true
