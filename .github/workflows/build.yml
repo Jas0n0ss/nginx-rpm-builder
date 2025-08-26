@@ -1,0 +1,83 @@
+name: Build Nginx Variants RPM (RHEL9)
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # 每周日凌晨 4:00 UTC
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Select build target'
+        required: true
+        type: choice
+        options:
+          - nginx-1.25.0
+          - nginx-latest
+          - tengine-latest
+          - openresty-latest
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream9
+
+    env:
+      BUILD_USER: builder
+      BUILD_HOME: /home/builder
+      RPMBUILD: ${{ env.BUILD_HOME }}/rpmbuild
+      MODULES: ${{ env.BUILD_HOME }}/modules
+      LUADIR: ${{ env.BUILD_HOME }}/lualib
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Builder User
+        run: |
+          useradd -m ${{ env.BUILD_USER }}
+          echo "${{ env.BUILD_USER }} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          su - ${{ env.BUILD_USER }}
+
+      - name: Copy Project & Setup Env
+        run: |
+          cd $GITHUB_WORKSPACE
+          sudo chown -R ${{ env.BUILD_USER }} .
+          cp -r ./* ${{ env.BUILD_HOME }}/
+          su - ${{ env.BUILD_USER }} -c "cd ${{ env.BUILD_HOME }} && ./build/scripts/setup_env.sh"
+
+      - name: Parse Build Target
+        run: |
+          case "${{ inputs.target }}" in
+            nginx-1.25.0)
+              echo "BUILD_TARGET=nginx-1.25.0" >> $GITHUB_ENV
+              ;;
+            nginx-latest)
+              echo "BUILD_TARGET=nginx-latest" >> $GITHUB_ENV
+              ;;
+            tengine-latest)
+              echo "BUILD_TARGET=tengine-latest" >> $GITHUB_ENV
+              ;;
+            openresty-latest)
+              echo "BUILD_TARGET=openresty-latest" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Build RPM
+        run: |
+          cd ${{ env.BUILD_HOME }}
+          ./build/scripts/build.sh
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: rpms-${{ env.BUILD_TARGET }}
+          path: ${{ env.RPMBUILD }}/RPMS/x86_64/*.rpm
+
+      - name: Create GitHub Release (Manual Only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_TARGET }}-v$(cat ${{ env.RPMBUILD }}/SPECS/*.spec | grep Version | head -1 | awk '{print $2}')
+          name: Release ${{ env.BUILD_TARGET }} $(cat ${{ env.RPMBUILD }}/SPECS/*.spec | grep Version | head -1 | awk '{print $2}')
+          files: ${{ env.RPMBUILD }}/RPMS/x86_64/*.rpm
+          generate_release_notes: true

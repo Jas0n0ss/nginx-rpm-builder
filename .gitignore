@@ -1,0 +1,7 @@
+rpmbuild/RPMS/
+rpmbuild/SRPMS/
+rpmbuild/BUILD/
+rpmbuild/SOURCES/*.tar.gz
+sources/cache/
+*.bak
+.DS_Store
