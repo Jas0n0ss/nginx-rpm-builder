@@ -1,14 +1,10 @@
 name: Build Nginx Variants RPM (RHEL9)
 
 on:
-  # schedule:
-  #   - cron: '0 4 * * 0'   # 每周日凌晨 4:00 UTC（已注释）
-
   push:
     branches:
-      - main  # 当 push 到 main 分支时触发
-
-  workflow_dispatch:  # 仍保留手动触发
+      - main
+  workflow_dispatch:
     inputs:
       target:
         description: 'Select build target'
@@ -37,19 +33,14 @@ jobs:
 
       - name: Setup Builder User
         run: |
-          useradd -m builder
+          useradd -m -d /home/builder builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
       - name: Copy Project Files
         run: |
-          cp -r $GITHUB_WORKSPACE/* /home/builder/ || true
+          # 不需要 sudo，因为当前用户是 root
+          cp -r $GITHUB_WORKSPACE/* /home/builder/
           chown -R builder:builder /home/builder/
-
-      - name: Copy Project Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          sudo chown -R builder .
-          cp -r ./* /home/builder/
 
       - name: Setup Build Environment
         run: |
@@ -57,11 +48,9 @@ jobs:
 
       - name: Parse Build Target
         run: |
-          # 默认为 nginx-latest，兼容 push 触发
           case "${{ github.event_name }}" in
             push)
               echo "BUILD_TARGET=nginx-latest" >> $GITHUB_ENV
-              echo "Triggered by push, using default target: nginx-latest"
               ;;
             workflow_dispatch)
               case "${{ inputs.target }}" in
@@ -101,7 +90,6 @@ jobs:
           if [[ -f "$SPEC_FILE" ]]; then
             VERSION=$(grep "^Version:" "$SPEC_FILE" | awk '{print $2}')
             echo "RPM_VERSION=$VERSION" >> $GITHUB_ENV
-            echo "✅ Detected version: $VERSION"
           else
             echo "❌ SPEC file not found"
             exit 1
