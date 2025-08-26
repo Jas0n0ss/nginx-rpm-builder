@@ -1,3 +1,4 @@
+
 name: Build Nginx Variants RPM (RHEL9)
 
 on:
@@ -44,8 +45,7 @@ jobs:
 
       - name: Setup Build Environment
         run: |
-          cd /home/builder
-          ./build/scripts/setup_env.sh
+          su - builder -c "cd /home/builder && ./build/scripts/setup_env.sh"
 
       - name: Parse Build Target
         run: |
