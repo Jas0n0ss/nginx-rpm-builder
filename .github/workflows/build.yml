@@ -36,7 +36,7 @@ jobs:
         run: |
           useradd -m ${{ env.BUILD_USER }}
           echo "${{ env.BUILD_USER }} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          su - ${{ env.BUILD_USER }}
+          su - ${{ env.BUILD_USER }} -c "echo 'Builder user setup complete.'"
 
       - name: Copy Project & Setup Env
         run: |
@@ -73,11 +73,26 @@ jobs:
           name: rpms-${{ env.BUILD_TARGET }}
           path: ${{ env.RPMBUILD }}/RPMS/x86_64/*.rpm
 
+      # 新增：提取版本号到环境变量
+      - name: Extract Version from SPEC
+        if: github.event_name == 'workflow_dispatch'
+        id: extract_version
+        run: |
+          SPEC_FILE=$(find ${{ env.RPMBUILD }}/SPECS -name "*.spec" | head -1)
+          if [[ -f "$SPEC_FILE" ]]; then
+            VERSION=$(grep "^Version:" "$SPEC_FILE" | awk '{print $2}')
+            echo "RPM_VERSION=$VERSION" >> $GITHUB_ENV
+            echo "Extracted version: $VERSION"
+          else
+            echo "❌ SPEC file not found"
+            exit 1
+          fi
+
       - name: Create GitHub Release (Manual Only)
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.BUILD_TARGET }}-v$(cat ${{ env.RPMBUILD }}/SPECS/*.spec | grep Version | head -1 | awk '{print $2}')
-          name: Release ${{ env.BUILD_TARGET }} $(cat ${{ env.RPMBUILD }}/SPECS/*.spec | grep Version | head -1 | awk '{print $2}')
+          tag_name: ${{ env.BUILD_TARGET }}-v${{ env.RPM_VERSION }}
+          name: Release ${{ env.BUILD_TARGET }} ${{ env.RPM_VERSION }}
           files: ${{ env.RPMBUILD }}/RPMS/x86_64/*.rpm
           generate_release_notes: true
