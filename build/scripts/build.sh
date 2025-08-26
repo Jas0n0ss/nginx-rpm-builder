@@ -1,7 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-source build/scripts/common.sh
+# 使用绝对路径，避免 source 失败
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
+# ========================
+# 版本获取函数
+# ========================
 
 get_nginx_stable_version() {
   curl -s http://nginx.org/download/ \
@@ -28,7 +34,14 @@ get_openresty_stable_version() {
 # 构建目标解析
 # ========================
 
-case ${BUILD_TARGET:-} in
+# 确保 BUILD_TARGET 已定义
+if [[ -z "${BUILD_TARGET:-}" ]]; then
+  echo "❌ 错误：必须设置 BUILD_TARGET"
+  echo "可用值: nginx-1.25.0, nginx-latest, tengine-latest, openresty-latest"
+  exit 1
+fi
+
+case $BUILD_TARGET in
   nginx-1.25.0)
     VERSION="1.25.0"
     SOURCE_URL="http://nginx.org/download/nginx-$VERSION.tar.gz"
@@ -46,6 +59,7 @@ case ${BUILD_TARGET:-} in
     VERSION=$(get_tengine_stable_version)
     [[ -z "$VERSION" ]] && { echo "❌ 无法获取 Tengine 稳定版"; exit 1; }
     TAG="v$VERSION"
+    # ✅ 修复：移除多余空格
     SOURCE_URL="https://github.com/alibaba/tengine/archive/refs/tags/$TAG.tar.gz"
     SOURCE_FILE="tengine-$VERSION.tar.gz"
     SPEC_FILE="tengine.spec"
@@ -53,6 +67,7 @@ case ${BUILD_TARGET:-} in
   openresty-latest)
     VERSION=$(get_openresty_stable_version)
     [[ -z "$VERSION" ]] && { echo "❌ 无法获取 OpenResty 稳定版"; exit 1; }
+    # ✅ 修复：移除多余空格
     SOURCE_URL="https://openresty.org/download/openresty-$VERSION.tar.gz"
     SOURCE_FILE="openresty-$VERSION.tar.gz"
     SPEC_FILE="openresty.spec"
@@ -76,10 +91,7 @@ SPEC_SRC="build/specs/$SPEC_FILE"
 SPEC_DST="$RPMBUILD/SPECS/$SPEC_FILE"
 
 cp "$SPEC_SRC" "$SPEC_DST"
-
-# 安全替换 Version（支持空格/制表符）
 sed -i.bak "s/^\(Version:[[:space:]]*\).*/\1$VERSION/" "$SPEC_DST" && rm -f "$SPEC_DST.bak"
-
 echo "✅ 已更新 $SPEC_DST 中的 Version 为 $VERSION"
 
 # ========================
