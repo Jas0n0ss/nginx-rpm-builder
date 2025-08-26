@@ -44,9 +44,9 @@ jobs:
           chown -R builder:builder /home/builder/
 
       - name: Setup Build Environment
-          run: |
-            cd /home/builder
-            ./build/scripts/setup_env.sh
+        run: |
+         cd /home/builder
+         ./build/scripts/setup_env.sh
 
       - name: Parse Build Target
         run: |
