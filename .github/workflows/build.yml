@@ -41,6 +41,12 @@ jobs:
           cp -r $GITHUB_WORKSPACE/* /home/builder/
           chown -R builder:builder /home/builder/
 
+      - name: Copy Plugins to SOURCES
+        run: |
+          cd /home/builder
+          mkdir -p $RPMBUILD/SOURCES/plugins
+          cp -r build/plugins/* $RPMBUILD/SOURCES/plugins/
+
       - name: Setup Build Environment
         run: |
           cd /home/builder

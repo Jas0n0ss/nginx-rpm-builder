@@ -1,27 +1,26 @@
+%{!?version: %global version 1.27.1.2}
+%{!?geoip2_version: %global geoip2_version 3.4}
+%{!?vts_version: %global vts_version 0.2.4}
+
 Name:           openresty-custom
-Version:        1.27.1.2
+Version:        %{version}
 Release:        1%{?dist}
-Summary:        OpenResty with GeoIP2 and VTS modules
+Summary:        OpenResty with dynamic modules (local dirs)
 License:        BSD
 URL:            https://openresty.org/
 Source0:        https://openresty.org/download/openresty-%{version}.tar.gz
-
-# 动态模块源码（在线下载）
-Source1:        https://github.com/leev/ngx_http_geoip2_module/archive/refs/tags/3.4.tar.gz
-Source2:        https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v0.2.2.tar.gz
 
 BuildRequires:  gcc, make, pcre-devel, zlib-devel, openssl-devel, libmaxminddb-devel
 Requires:       pcre, zlib, openssl, libmaxminddb
 
 %description
-OpenResty with additional dynamic modules: GeoIP2, VTS.
+OpenResty with modules from pre-extracted directories.
 
 %prep
-%setup -n openresty-%{version} -a 1 -a 2
+%setup -n openresty-%{version}
 
-# 重命名模块目录为预期名称
-mv ngx_http_geoip2_module-3.4 ngx_http_geoip2_module
-mv nginx-module-vts-v0.2.2 nginx-module-vts
+cp -r %{_sourcedir}/plugins/ngx_http_geoip2_module-%{geoip2_version} ngx_http_geoip2_module
+cp -r %{_sourcedir}/plugins/nginx-module-vts-%{vts_version} nginx-module-vts
 
 %build
 ./configure \
@@ -46,5 +45,5 @@ cp build/objs/*.so %{buildroot}/usr/lib64/openresty/modules/ || true
 /usr/lib64/openresty/modules/ngx_http_vhost_traffic_status_module.so
 
 %changelog
-* 05 Apr 2025 Builder <ci@example.com> - 1.27.1.2-1
-- Auto-built with dynamic modules from online sources
+* Mon Apr 07 2025 Builder <ci@example.com> - %{version}-1
+- Built with pre-extracted modules
