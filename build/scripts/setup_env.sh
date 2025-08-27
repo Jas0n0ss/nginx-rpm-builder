@@ -14,7 +14,6 @@ dnf install -y \
     systemd-devel \
     which autoconf automake libtool
 
-# 初始化 rpmbuild
 rpmdev-setuptree || mkdir -p ~/rpmbuild/{SOURCES,SPECS,RPMS,SRPMS,BUILD}
 
-echo "✅ 环境准备完成（模块将在 .spec 中自动下载）"
+echo "✅ 环境准备完成"
