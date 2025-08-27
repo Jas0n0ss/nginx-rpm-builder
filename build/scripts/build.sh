@@ -18,11 +18,7 @@ get_tengine_stable_version() {
 }
 
 get_openresty_stable_version() {
-  curl -s https://openresty.org/en/download.html \
-    | grep -o 'openresty-[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\.tar\.gz' \
-    | grep -v 'beta\|rc' \
-    | sed 's/openresty-\(.*\)\.tar\.gz/\1/' \
-    | sort -V | tail -1
+  echo "1.27.1.2"
 }
 
 case ${BUILD_TARGET:-} in
@@ -59,7 +55,6 @@ SPEC_DST="$RPMBUILD/SPECS/$SPEC_FILE"
 
 cp "$SPEC_SRC" "$SPEC_DST"
 
-# 动态更新版本
 sed -i.bak "s/%{!?nginx_version: %global nginx_version .*/%{!?nginx_version: %global nginx_version $VERSION}/" "$SPEC_DST" 2>/dev/null || true
 sed -i.bak "s/%{!?tengine_version: %global tengine_version .*/%{!?tengine_version: %global tengine_version $VERSION}/" "$SPEC_DST" 2>/dev/null || true
 sed -i.bak "s/Version:.*/Version:        $VERSION/" "$SPEC_DST"
@@ -67,7 +62,6 @@ rm -f "$SPEC_DST.bak"
 
 echo "✅ 已更新 $SPEC_DST 中的版本为 $VERSION"
 
-# 下载主源码
 SOURCE_URL=$(grep "Source0" "$SPEC_DST" | awk '{print $2}' | sed "s|%{nginx_version}|$VERSION|" | sed "s|%{tengine_version}|$VERSION|" | sed "s|%{version}|$VERSION|")
 echo "📥 下载源码: $SOURCE_URL"
 wget -q --show-progress "$SOURCE_URL" -O "$RPMBUILD/SOURCES/$(basename "$SOURCE_URL")"
