@@ -45,7 +45,7 @@ jobs:
         run: |
           cd /home/builder
           mkdir -p $RPMBUILD/SOURCES/plugins
-          cp -r build/plugins/* $RPMBUILD/SOURCES/plugins/
+          cp -r $GITHUB_WORKSPACE/rpmbuild/SOURCES/plugins/* $RPMBUILD/SOURCES/plugins/
 
       - name: Setup Build Environment
         run: |
