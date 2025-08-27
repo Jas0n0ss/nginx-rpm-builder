@@ -1,8 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
+
+echo "DEBUG: BUILD_TARGET=$BUILD_TARGET"
+echo "DEBUG: VERSION=$VERSION"
+echo "DEBUG: SPEC_FILE=$SPEC_FILE"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
+
+# 确保 BUILD_TARGET 已定义
+if [[ -z "${BUILD_TARGET:-}" ]]; then
+  echo "❌ 错误：BUILD_TARGET 未定义"
+  exit 1
+fi
 
 get_nginx_stable_version() {
   curl -s https://nginx.org/ \
@@ -21,7 +32,7 @@ get_openresty_stable_version() {
   echo "1.27.1.2"
 }
 
-case ${BUILD_TARGET:-} in
+case $BUILD_TARGET in
   nginx-1.25.0)
     VERSION="1.25.0"
     SPEC_FILE="nginx.spec"
@@ -68,6 +79,6 @@ wget -q --show-progress "$SOURCE_URL" -O "$RPMBUILD/SOURCES/$(basename "$SOURCE_
 
 echo "🔧 开始构建 RPM..."
 cd "$RPMBUILD"
-rpmbuild -ba "SPECS/$SPEC_FILE"
+rpmbuild -ba "SPECS/$SPEC_FILE" || exit 1
 
 echo "🎉 构建完成！RPM 位于: $RPMBUILD/RPMS/x86_64/"
