@@ -46,13 +46,11 @@ jobs:
           cd /home/builder
           mkdir -p $RPMBUILD/SOURCES/plugins
           cp -r $GITHUB_WORKSPACE/rpmbuild/SOURCES/plugins/* $RPMBUILD/SOURCES/plugins/
-        # 注意：这里不再使用 BUILD_TARGET，只复制模块
 
       - name: Setup Build Environment
         run: |
           cd /home/builder
           ./build/scripts/setup_env.sh
-        # setup_env.sh 不使用 BUILD_TARGET，只安装依赖
 
       - name: Parse Build Target
         run: |
@@ -84,7 +82,6 @@ jobs:
           ./build/scripts/build.sh
         env:
           BUILD_TARGET: ${{ env.BUILD_TARGET }}
-        # 只在 build.sh 中使用 BUILD_TARGET
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -92,7 +89,6 @@ jobs:
           name: rpms-${{ env.BUILD_TARGET }}
           path: /home/builder/rpmbuild/RPMS/x86_64/*.rpm
           if-no-files-found: warn
-        # ✅ 使用 v4，避免 2025 年被禁用
 
       - name: Extract Version from SPEC
         if: github.event_name == 'workflow_dispatch'
