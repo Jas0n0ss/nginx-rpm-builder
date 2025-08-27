@@ -1,11 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-
-echo "DEBUG: BUILD_TARGET=$BUILD_TARGET"
-echo "DEBUG: VERSION=$VERSION"
-echo "DEBUG: SPEC_FILE=$SPEC_FILE"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
@@ -32,6 +27,10 @@ get_openresty_stable_version() {
   echo "1.27.1.2"
 }
 
+# 初始化 VERSION
+VERSION=""
+SPEC_FILE=""
+
 case $BUILD_TARGET in
   nginx-1.25.0)
     VERSION="1.25.0"
@@ -39,17 +38,26 @@ case $BUILD_TARGET in
     ;;
   nginx-latest)
     VERSION=$(get_nginx_stable_version)
-    [[ -z "$VERSION" ]] && { echo "❌ 无法获取 Nginx 稳定版"; exit 1; }
+    if [[ -z "$VERSION" ]]; then
+      echo "❌ 无法获取 Nginx 稳定版"
+      exit 1
+    fi
     SPEC_FILE="nginx.spec"
     ;;
   tengine-latest)
     VERSION=$(get_tengine_stable_version)
-    [[ -z "$VERSION" ]] && { echo "❌ 无法获取 Tengine 稳定版"; exit 1; }
+    if [[ -z "$VERSION" ]]; then
+      echo "❌ 无法获取 Tengine 稳定版"
+      exit 1
+    fi
     SPEC_FILE="tengine.spec"
     ;;
   openresty-latest)
     VERSION=$(get_openresty_stable_version)
-    [[ -z "$VERSION" ]] && { echo "❌ 无法获取 OpenResty 稳定版"; exit 1; }
+    if [[ -z "$VERSION" ]]; then
+      echo "❌ 无法获取 OpenResty 稳定版"
+      exit 1
+    fi
     SPEC_FILE="openresty.spec"
     ;;
   *)
@@ -61,11 +69,21 @@ esac
 echo "🔍 构建目标: $BUILD_TARGET"
 echo "📦 版本: $VERSION"
 
+# 确保 VERSION 和 SPEC_FILE 已设置
+if [[ -z "$VERSION" || -z "$SPEC_FILE" ]]; then
+  echo "❌ VERSION 或 SPEC_FILE 未正确设置"
+  exit 1
+fi
+
 SPEC_SRC="build/specs/$SPEC_FILE"
 SPEC_DST="$RPMBUILD/SPECS/$SPEC_FILE"
 
+# 创建 SPECS 目录
+mkdir -p "$RPMBUILD/SPECS"
+
 cp "$SPEC_SRC" "$SPEC_DST"
 
+# 动态更新版本
 sed -i.bak "s/%{!?nginx_version: %global nginx_version .*/%{!?nginx_version: %global nginx_version $VERSION}/" "$SPEC_DST" 2>/dev/null || true
 sed -i.bak "s/%{!?tengine_version: %global tengine_version .*/%{!?tengine_version: %global tengine_version $VERSION}/" "$SPEC_DST" 2>/dev/null || true
 sed -i.bak "s/Version:.*/Version:        $VERSION/" "$SPEC_DST"
@@ -73,9 +91,19 @@ rm -f "$SPEC_DST.bak"
 
 echo "✅ 已更新 $SPEC_DST 中的版本为 $VERSION"
 
+# 下载主源码
 SOURCE_URL=$(grep "Source0" "$SPEC_DST" | awk '{print $2}' | sed "s|%{nginx_version}|$VERSION|" | sed "s|%{tengine_version}|$VERSION|" | sed "s|%{version}|$VERSION|")
+if [[ -z "$SOURCE_URL" ]]; then
+  echo "❌ 无法从 SPEC 文件获取 Source0"
+  exit 1
+fi
+
 echo "📥 下载源码: $SOURCE_URL"
 wget -q --show-progress "$SOURCE_URL" -O "$RPMBUILD/SOURCES/$(basename "$SOURCE_URL")"
+if [[ $? -ne 0 ]]; then
+  echo "❌ 下载失败: $SOURCE_URL"
+  exit 1
+fi
 
 echo "🔧 开始构建 RPM..."
 cd "$RPMBUILD"
